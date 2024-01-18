@@ -27,7 +27,7 @@ class CreateTreeCommand extends Command
         $this
             ->setDescription('Create tree command')
             ->addArgument('directory', InputArgument::REQUIRED, 'The directory path')
-            ->addOption('levels', 'l', InputArgument::OPTIONAL, 'Number of levels to display', 3);
+            ->addOption('levels', 'l', InputArgument::OPTIONAL, 'Number of levels to display', 10);
     }
 
     protected function execute(InputInterface $input, OutputInterface $output): int
@@ -35,25 +35,34 @@ class CreateTreeCommand extends Command
         $directory = $input->getArgument('directory');
         $levels = (int)$input->getOption('levels');
 
-        $info = $this->fileService->getTreeInfo($directory, $levels);
+        $info = $this->fileService->getTreeInfo($directory);
 
-        $this->outputTreeInfo($info, $output);
+        $this->outputTreeInfo($info, $output, $levels);
 
         return Command::SUCCESS;
     }
 
-    private function outputTreeInfo(array $info, OutputInterface $output, $indent = 0)
+
+    private function outputTreeInfo(array $info, OutputInterface $output, $maxLevels, $currentLevel = 0)
     {
-        if ($indent === 0) {
-            $output->writeln("Name \t  Dirs \t  Files \t  Links \t TotalSize");
+        if ($currentLevel === 0) {
+            $output->writeln("Name \t\t\t\t\t Dirs \t\t Files \t\t Links \t\t TotalSize");
         }
 
-        $spaces = str_repeat('.', $indent);
-        $output->writeln("{$spaces}{$info['name']} \t {$info['folders']} \t {$info['files']} \t {$info['links']} \t {$info['totalSize']}");
+        if ($currentLevel <= $maxLevels) {
+            $spaces = str_repeat('.', $currentLevel * 1);
+            $output->writeln(sprintf(
+                "%s %-22s \t\t %d \t\t %d \t\t %d \t\t %d",
+                $spaces,
+                $info['name'],
+                $info['folders'],
+                $info['files'],
+                $info['links'],
+                $info['totalSize']
+            ));
 
-        foreach ($info as $childInfo) {
-            if (is_array($childInfo) && isset($childInfo['name'])) {
-                $this->outputTreeInfo($childInfo, $output, $indent + 1);
+            foreach ($info['children'] as $childInfo) {
+                $this->outputTreeInfo($childInfo, $output, $maxLevels, $currentLevel + 1);
             }
         }
     }
